@@ -1,0 +1,58 @@
+{
+  "accuracy": 0.9548,
+  "precision": 0.9559,
+  "recall": 0.9502,
+  "f1": 0.9528,
+  "per_class": {
+    "Tshirts": {
+      "precision": 0.9533,
+      "recall": 0.9775,
+      "f1": 0.9652
+    },
+    "Shirts": {
+      "precision": 0.9737,
+      "recall": 0.9642,
+      "f1": 0.9689
+    },
+    "Casual Shoes": {
+      "precision": 0.9169,
+      "recall": 0.9324,
+      "f1": 0.9246
+    },
+    "Watches": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "Sports Shoes": {
+      "precision": 0.9096,
+      "recall": 0.8703,
+      "f1": 0.8895
+    },
+    "Kurtas": {
+      "precision": 0.9822,
+      "recall": 0.9822,
+      "f1": 0.9822
+    },
+    "Tops": {
+      "precision": 0.8521,
+      "recall": 0.7826,
+      "f1": 0.8159
+    },
+    "Handbags": {
+      "precision": 0.9947,
+      "recall": 1.0,
+      "f1": 0.9974
+    },
+    "Heels": {
+      "precision": 0.9865,
+      "recall": 0.9932,
+      "f1": 0.9898
+    },
+    "Sunglasses": {
+      "precision": 0.9897,
+      "recall": 1.0,
+      "f1": 0.9948
+    }
+  }
+}

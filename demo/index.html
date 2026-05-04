@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retail Image Classifier — AI for Retail</title>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.0/dist/ort.min.js"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 24px;
+        }
+        .container { max-width: 950px; margin: 0 auto; }
+        header { text-align: center; padding: 36px 0 24px; }
+        h1 { font-size: 2.4rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; background: linear-gradient(135deg, #a78bfa, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .subtitle { color: #94a3b8; font-size: 1.05rem; }
+        .badge-row { display: flex; justify-content: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+        .badge { font-size: 0.78rem; padding: 5px 14px; border-radius: 20px; font-weight: 600; }
+        .badge-pytorch { background: rgba(238, 76, 44, 0.2); color: #ee4c2c; border: 1px solid rgba(238, 76, 44, 0.35); }
+        .badge-cv { background: rgba(96, 165, 250, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
+        .badge-onnx { background: rgba(96, 165, 250, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
+        .card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 28px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(12px);
+        }
+        .upload-area {
+            border: 2px dashed rgba(96, 165, 250, 0.4);
+            border-radius: 14px;
+            padding: 40px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 160px;
+        }
+        .upload-area:hover, .upload-area.drag-over { border-color: #60a5fa; background: rgba(96, 165, 250, 0.08); }
+        .upload-area input { display: none; }
+        .upload-icon { font-size: 2.8rem; margin-bottom: 10px; opacity: 0.85; line-height: 1; }
+        .upload-text { font-weight: 600; font-size: 1rem; color: #e2e8f0; line-height: 1.4; margin: 0; }
+        .upload-hint { color: #64748b; font-size: 0.85rem; margin-top: 8px; line-height: 1.4; }
+
+        .loading { display: none; text-align: center; padding: 28px; }
+        .spinner {
+            width: 44px; height: 44px;
+            border: 3px solid rgba(96, 165, 250, 0.2);
+            border-top-color: #60a5fa;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 14px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loadingText { color: #94a3b8; font-size: 0.9rem; }
+
+        .results { display: none; margin-top: 20px; }
+        .results h2 { font-size: 1.15rem; color: #cbd5e1; margin-bottom: 16px; }
+
+        .result-item {
+            display: flex; align-items: center; gap: 14px;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+        .result-item.top { border-left: 4px solid #60a5fa; background: rgba(96, 165, 250, 0.12); }
+        .result-rank { font-size: 0.85rem; color: #64748b; width: 24px; text-align: center; font-weight: 700; flex-shrink: 0; }
+        .result-label { flex: 1; font-weight: 600; font-size: 1rem; }
+        .result-item.top .result-label { color: #60a5fa; }
+        .progress-track {
+            width: 140px; height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px; overflow: hidden;
+            flex-shrink: 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            border-radius: 5px;
+            transition: width 0.6s ease;
+        }
+        .result-pct { font-size: 0.95rem; font-weight: 700; color: #94a3b8; width: 56px; text-align: right; flex-shrink: 0; }
+
+        /* Preprocessing visualization */
+        .preproc-section { display: none; margin-top: 20px; }
+        .preproc-section h3 { font-size: 1rem; color: #cbd5e1; margin-bottom: 14px; }
+        .preproc-grid {
+            display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+        }
+        .preproc-step {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            min-width: 120px;
+            flex: 1;
+            max-width: 200px;
+        }
+        .preproc-step canvas {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            object-fit: contain;
+        }
+        .preproc-step .step-name {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .preproc-step .step-detail {
+            font-size: 0.68rem;
+            color: #60a5fa;
+            margin-top: 2px;
+        }
+        .preproc-arrow {
+            color: #475569;
+            font-size: 1.5rem;
+            align-self: center;
+            flex-shrink: 0;
+        }
+        .normalized-canvas {
+            display: none;
+        }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+        .metric-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 16px; border-radius: 12px;
+            text-align: center;
+        }
+        .metric-box h3 { color: #64748b; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+        .metric-box .value { font-size: 1.5rem; font-weight: 700; color: #e2e8f0; }
+        .metric-box .value.green { color: #4ade80; }
+        .metric-box .value.blue { color: #60a5fa; }
+        .metric-box .value.purple { color: #a78bfa; }
+
+        .pipeline-steps { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+        .step {
+            flex: 1; min-width: 100px; background: rgba(255, 255, 255, 0.04);
+            padding: 14px 10px; border-radius: 10px; text-align: center;
+        }
+        .step-icon { font-size: 1.6rem; margin-bottom: 6px; }
+        .step-title { font-size: 0.75rem; color: #94a3b8; }
+
+        .status-bar {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+        }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.loading { background: #fbbf24; animation: pulse 1s infinite; }
+        .status-dot.ready { background: #4ade80; }
+        .status-dot.error { background: #f87171; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .error-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: #f87171;
+            display: none;
+        }
+
+        footer { text-align: center; padding: 24px; color: #475569; font-size: 0.82rem; }
+        footer a { color: #60a5fa; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Retail Image Classifier</h1>
+            <p class="subtitle">Deep Learning para clasificación de productos retail · PyTorch + MobileNetV3</p>
+            <div class="badge-row">
+                <span class="badge badge-pytorch">PyTorch</span>
+                <span class="badge badge-cv">Computer Vision</span>
+                <span class="badge badge-onnx">ONNX Runtime</span>
+            </div>
+        </header>
+
+        <div class="card">
+            <div class="status-bar" id="statusBar">
+                <span class="status-dot loading" id="statusDot"></span>
+                <span id="statusText">Cargando modelo ONNX...</span>
+            </div>
+
+            <h2 style="font-size: 1.1rem; margin-bottom: 6px;">Clasificador de Imágenes</h2>
+            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 14px;">
+                Modelo CNN entrenado con <strong>fotos reales</strong> de DeepFashion InShop (17.7K imágenes).
+                <strong>6 categorías:</strong> Tops, Sweaters, Outerwear, Dresses, Bottoms, Skirts.
+            </p>
+
+            <label class="upload-area" id="dropZone">
+                <input type="file" id="fileInput" accept="image/*">
+                <div class="upload-icon">&#128247;</div>
+                <p class="upload-text">Haz clic o arrastra una imagen</p>
+                <p class="upload-hint">JPG, PNG, WebP · Funciona mejor con fotos de productos en fondo claro</p>
+            </label>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p id="loadingText">Procesando imagen...</p>
+            </div>
+
+            <div class="error-box" id="errorBox"></div>
+
+            <!-- Preprocessing visualization -->
+            <div class="preproc-section" id="preprocSection">
+                <h3>Pipeline de Preprocesamiento</h3>
+                <div class="preproc-grid">
+                    <div class="preproc-step">
+                        <canvas id="canvasStep1"></canvas>
+                        <div class="step-name">1. Original</div>
+                        <div class="step-detail" id="detailStep1"></div>
+                    </div>
+                    <span class="preproc-arrow">&rarr;</span>
+                    <div class="preproc-step">
+                        <canvas id="canvasStep2"></canvas>
+                        <div class="step-name">2. Aspect-Ratio Resize</div>
+                        <div class="step-detail" id="detailStep2"></div>
+                    </div>
+                    <span class="preproc-arrow">&rarr;</span>
+                    <div class="preproc-step">
+                        <canvas id="canvasStep3"></canvas>
+                        <div class="step-name">3. Center Crop</div>
+                        <div class="step-detail" id="detailStep3">224×224px</div>
+                    </div>
+                    <span class="preproc-arrow">&rarr;</span>
+                    <div class="preproc-step">
+                        <canvas id="canvasStep4"></canvas>
+                        <div class="step-name">4. Normalized (ImageNet)</div>
+                        <div class="step-detail" id="detailStep4">μ=[0.485, 0.456, 0.406]</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results" id="results">
+                <h2>Resultados de Clasificación</h2>
+                <div class="result-item top">
+                    <span class="result-rank">1</span>
+                    <span class="result-label" id="topLabel">-</span>
+                    <div class="progress-track"><div class="progress-fill" id="topBar" style="width: 0%"></div></div>
+                    <span class="result-pct" id="topPct">-</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-rank">2</span>
+                    <span class="result-label" id="secondLabel">-</span>
+                    <div class="progress-track"><div class="progress-fill" id="secondBar" style="width: 0%"></div></div>
+                    <span class="result-pct" id="secondPct">-</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-rank">3</span>
+                    <span class="result-label" id="thirdLabel">-</span>
+                    <div class="progress-track"><div class="progress-fill" id="thirdBar" style="width: 0%"></div></div>
+                    <span class="result-pct" id="thirdPct">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size: 1.1rem; margin-bottom: 16px;">Métricas del Modelo — 25K fotos reales</h2>
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <h3>Accuracy</h3>
+                    <div class="value green">95.1%</div>
+                </div>
+                <div class="metric-box">
+                    <h3>Precision</h3>
+                    <div class="value blue">95.3%</div>
+                </div>
+                <div class="metric-box">
+                    <h3>Recall</h3>
+                    <div class="value purple">95.4%</div>
+                </div>
+                <div class="metric-box">
+                    <h3>F1-Score</h3>
+                    <div class="value" style="color: #fbbf24;">95.4%</div>
+                </div>
+                <div class="metric-box">
+                    <h3>Parámetros</h3>
+                    <div class="value" style="font-size: 1.1rem;">1.5M</div>
+                </div>
+                <div class="metric-box">
+                    <h3>Epochs</h3>
+                    <div class="value blue">20</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size: 1.1rem; margin-bottom: 14px;">Pipeline de ML</h2>
+            <div class="pipeline-steps">
+                <div class="step"><div class="step-icon">&#128230;</div><div class="step-title">Dataset</div></div>
+                <div class="step"><div class="step-icon">&#127891;</div><div class="step-title">Transfer Learning</div></div>
+                <div class="step"><div class="step-icon">&#9881;</div><div class="step-title">Fine-tuning</div></div>
+                <div class="step"><div class="step-icon">&#128300;</div><div class="step-title">Evaluación</div></div>
+                <div class="step"><div class="step-icon">&#128640;</div><div class="step-title">Export ONNX</div></div>
+                <div class="step"><div class="step-icon">&#127760;</div><div class="step-title">Deploy Web</div></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>MobileNetV3-Small &middot; Fashion Product Images &middot; ONNX Runtime Web</p>
+            <p style="margin-top: 6px;">
+                <a href="https://github.com/daviddaza2906/retail-image-classifier">GitHub</a> &middot;
+                <a href="https://github.com/daviddaza2906/retail-image-classifier/blob/main/train.py">train.py</a> &middot;
+                <a href="https://github.com/daviddaza2906/retail-image-classifier/blob/main/train_real.py">train_real.py</a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        const FASHION_CLASSES = ['bottoms', 'dresses', 'outerwear', 'skirts', 'sweaters', 'tops'];
+
+        const IMAGENET_MEAN = [0.485, 0.456, 0.406];
+        const IMAGENET_STD = [0.229, 0.224, 0.225];
+        const CROP_SIZE = 224;
+        const MIN_DIM = 256;
+
+        let session = null;
+
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const loadingDiv = document.getElementById('loading');
+        const resultsDiv = document.getElementById('results');
+        const errorBox = document.getElementById('errorBox');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const preprocSection = document.getElementById('preprocSection');
+
+        fileInput.addEventListener('change', handleFile);
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFile({ target: { files: e.dataTransfer.files } });
+            }
+        });
+
+        async function loadModel() {
+            try {
+                statusText.textContent = 'Descargando modelo ONNX...';
+                const modelResponse = await fetch('./retail_classifier.onnx');
+                if (!modelResponse.ok) throw new Error(`HTTP ${modelResponse.status}`);
+                const arrayBuffer = await modelResponse.arrayBuffer();
+
+                statusText.textContent = 'Inicializando ONNX Runtime...';
+                session = await ort.InferenceSession.create(arrayBuffer);
+
+                statusDot.className = 'status-dot ready';
+                statusText.textContent = 'Modelo listo · Accuracy: 95.1%';
+            } catch (err) {
+                statusDot.className = 'status-dot error';
+                statusText.textContent = 'Error al cargar modelo';
+                showError('Error: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        function preprocessImage(img, visualize) {
+            const CROP_SIZE = 224;
+
+            // Step 1: Original image
+            if (visualize) {
+                const c1 = document.getElementById('canvasStep1');
+                c1.width = img.width;
+                c1.height = img.height;
+                c1.getContext('2d').drawImage(img, 0, 0);
+                c1.parentElement.querySelector('.step-detail').textContent = `${img.width}×${img.height}px`;
+            }
+
+            // Step 2: Simple resize to 224x224 (matching training)
+            const resizedCanvas = document.createElement('canvas');
+            resizedCanvas.width = CROP_SIZE;
+            resizedCanvas.height = CROP_SIZE;
+            const rctx = resizedCanvas.getContext('2d');
+            rctx.imageSmoothingEnabled = true;
+            rctx.imageSmoothingQuality = 'high';
+            rctx.drawImage(img, 0, 0, CROP_SIZE, CROP_SIZE);
+
+            if (visualize) {
+                const c2 = document.getElementById('canvasStep2');
+                c2.parentElement.querySelector('.step-detail').textContent = `224×224px`;
+                visualizeCanvas(c2, resizedCanvas);
+            }
+
+            // Step 3: Image as seen by model (same as step 2 for resize-only pipeline)
+            if (visualize) {
+                const c3 = document.getElementById('canvasStep3');
+                c3.parentElement.querySelector('.step-detail').textContent = `224×224px (input)`;
+                visualizeCanvas(c3, resizedCanvas);
+            }
+
+            // Step 4: Normalize with ImageNet mean/std
+            const ctxData = rctx.getImageData(0, 0, CROP_SIZE, CROP_SIZE);
+            const floatData = new Float32Array(3 * CROP_SIZE * CROP_SIZE);
+
+            for (let i = 0; i < CROP_SIZE * CROP_SIZE; i++) {
+                const r = ctxData.data[i * 4] / 255.0;
+                const g = ctxData.data[i * 4 + 1] / 255.0;
+                const b = ctxData.data[i * 4 + 2] / 255.0;
+
+                floatData[i] = (r - IMAGENET_MEAN[0]) / IMAGENET_STD[0];
+                floatData[i + CROP_SIZE * CROP_SIZE] = (g - IMAGENET_MEAN[1]) / IMAGENET_STD[1];
+                floatData[i + 2 * CROP_SIZE * CROP_SIZE] = (b - IMAGENET_MEAN[2]) / IMAGENET_STD[2];
+            }
+
+            if (visualize) {
+                const c4 = document.getElementById('canvasStep4');
+                const normCanvas = document.createElement('canvas');
+                normCanvas.width = CROP_SIZE;
+                normCanvas.height = CROP_SIZE;
+                const nctx = normCanvas.getContext('2d');
+                const ndata = nctx.createImageData(CROP_SIZE, CROP_SIZE);
+
+                for (let i = 0; i < CROP_SIZE * CROP_SIZE; i++) {
+                    let r = floatData[i] * IMAGENET_STD[0] + IMAGENET_MEAN[0];
+                    let g = floatData[i + CROP_SIZE * CROP_SIZE] * IMAGENET_STD[1] + IMAGENET_MEAN[1];
+                    let b = floatData[i + 2 * CROP_SIZE * CROP_SIZE] * IMAGENET_STD[2] + IMAGENET_MEAN[2];
+                    ndata.data[i * 4] = Math.max(0, Math.min(255, r * 255));
+                    ndata.data[i * 4 + 1] = Math.max(0, Math.min(255, g * 255));
+                    ndata.data[i * 4 + 2] = Math.max(0, Math.min(255, b * 255));
+                    ndata.data[i * 4 + 3] = 255;
+                }
+                nctx.putImageData(ndata, 0, 0);
+                visualizeCanvas(c4, normCanvas);
+            }
+
+            return floatData;
+        }
+
+        function visualizeCanvas(canvas, sourceCanvas) {
+            const size = Math.min(200, sourceCanvas.width);
+            canvas.width = size;
+            canvas.height = size;
+            canvas.getContext('2d').drawImage(sourceCanvas, 0, 0, size, size);
+        }
+
+        function softmax(logits) {
+            const maxLogit = Math.max(...logits);
+            const exps = logits.map(x => Math.exp(x - maxLogit));
+            const sumExps = exps.reduce((a, b) => a + b, 0);
+            return exps.map(x => x / sumExps);
+        }
+
+        async function runInference(floatData) {
+            const inputTensor = new ort.Tensor('float32', floatData, [1, 3, 224, 224]);
+            const feeds = { input: inputTensor };
+            const results = await session.run(feeds);
+            return results.output.data;
+        }
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!session) {
+                showError('El modelo aún no ha cargado. Espera un momento.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                classifyImage(ev.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function classifyImage(dataUrl) {
+            loadingDiv.style.display = 'block';
+            resultsDiv.style.display = 'none';
+            preprocSection.style.display = 'none';
+            errorBox.style.display = 'none';
+
+            const img = new Image();
+            img.onload = async function() {
+                try {
+                    document.getElementById('loadingText').textContent = 'Preprocesando imagen...';
+                    const floatData = preprocessImage(img, true);
+
+                    preprocSection.style.display = 'block';
+
+                    document.getElementById('loadingText').textContent = 'Ejecutando inferencia CNN...';
+                    const start = performance.now();
+                    const logits = await runInference(floatData);
+                    const inferenceTime = (performance.now() - start).toFixed(0);
+
+                    const probs = softmax(Array.from(logits));
+                    const top3 = getTop3(probs);
+
+                    document.getElementById('loadingText').textContent =
+                        `Clasificado en ${inferenceTime}ms`;
+
+                    displayResults(top3);
+                    loadingDiv.style.display = 'none';
+                    resultsDiv.style.display = 'block';
+                } catch (err) {
+                    loadingDiv.style.display = 'none';
+                    showError('Error en inferencia: ' + err.message);
+                    console.error(err);
+                }
+            };
+            img.onerror = () => {
+                loadingDiv.style.display = 'none';
+                showError('No se pudo cargar la imagen.');
+            };
+            img.src = dataUrl;
+        }
+
+        function getTop3(probs) {
+            const indexed = probs.map((p, i) => ({ prob: p, idx: i }));
+            indexed.sort((a, b) => b.prob - a.prob);
+            return indexed.slice(0, 3).map(x => ({
+                idx: x.idx,
+                class: FASHION_CLASSES[x.idx],
+                prob: x.prob
+            }));
+        }
+
+        function displayResults(top3) {
+            document.getElementById('topLabel').textContent = top3[0].class;
+            document.getElementById('topBar').style.width = (top3[0].prob * 100).toFixed(1) + '%';
+            document.getElementById('topPct').textContent = (top3[0].prob * 100).toFixed(1) + '%';
+
+            document.getElementById('secondLabel').textContent = top3[1].class;
+            document.getElementById('secondBar').style.width = (top3[1].prob * 100).toFixed(1) + '%';
+            document.getElementById('secondPct').textContent = (top3[1].prob * 100).toFixed(1) + '%';
+
+            document.getElementById('thirdLabel').textContent = top3[2].class;
+            document.getElementById('thirdBar').style.width = (top3[2].prob * 100).toFixed(1) + '%';
+            document.getElementById('thirdPct').textContent = (top3[2].prob * 100).toFixed(1) + '%';
+        }
+
+        function showError(msg) {
+            errorBox.textContent = msg;
+            errorBox.style.display = 'block';
+        }
+
+        loadModel();
+    </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "accuracy": 0.7854,
+  "precision": 0.786,
+  "recall": 0.7866,
+  "f1": 0.7851,
+  "per_class": {
+    "blouses": {
+      "precision": 0.7137,
+      "recall": 0.75,
+      "f1": 0.7314
+    },
+    "cardigans": {
+      "precision": 0.5689,
+      "recall": 0.6305,
+      "f1": 0.5981
+    },
+    "dresses": {
+      "precision": 0.7702,
+      "recall": 0.8498,
+      "f1": 0.808
+    },
+    "graphic": {
+      "precision": 0.8182,
+      "recall": 0.8261,
+      "f1": 0.8221
+    },
+    "jackets": {
+      "precision": 0.7619,
+      "recall": 0.6154,
+      "f1": 0.6809
+    },
+    "pants": {
+      "precision": 0.8619,
+      "recall": 0.8829,
+      "f1": 0.8723
+    },
+    "rompers": {
+      "precision": 0.8718,
+      "recall": 0.8127,
+      "f1": 0.8412
+    },
+    "shorts": {
+      "precision": 0.8991,
+      "recall": 0.9111,
+      "f1": 0.9051
+    },
+    "skirts": {
+      "precision": 0.9319,
+      "recall": 0.944,
+      "f1": 0.9379
+    },
+    "sweaters": {
+      "precision": 0.6653,
+      "recall": 0.6331,
+      "f1": 0.6488
+    },
+    "sweatshirts": {
+      "precision": 0.7048,
+      "recall": 0.7477,
+      "f1": 0.7256
+    },
+    "tees": {
+      "precision": 0.8641,
+      "recall": 0.8357,
+      "f1": 0.8496
+    }
+  }
+}
