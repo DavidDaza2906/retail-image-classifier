@@ -1,2 +1,4 @@
 .venv/
 LEARNED.md
+.vercel
+.env*.local

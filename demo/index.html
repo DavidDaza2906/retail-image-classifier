@@ -6,34 +6,58 @@
     <title>Retail Image Classifier — AI for Retail</title>
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.0/dist/ort.min.js"></script>
     <style>
+        :root {
+            --bg: #1F2121;
+            --surface: #262828;
+            --surface2: #2B2D2D;
+            --text: #F5F5F5;
+            --text2: rgba(167,169,169,0.85);
+            --text3: rgba(167,169,169,0.5);
+            --accent: #32b8c6;
+            --accent2: #2da6b2;
+            --accent-rgb: 50,184,198;
+            --border: rgba(119,124,124,0.2);
+            --border-inner: rgba(119,124,124,0.12);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --radius-pill: 9999px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --mono: 'JetBrains Mono', 'Berkeley Mono', ui-monospace, monospace;
+            --warning: #e68161;
+            --danger: #ff5459;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(160deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            font-family: var(--font);
+            background: var(--bg);
             min-height: 100vh;
-            color: #e0e0e0;
+            color: var(--text);
             padding: 24px;
+            -webkit-font-smoothing: antialiased;
         }
         .container { max-width: 950px; margin: 0 auto; }
         header { text-align: center; padding: 36px 0 24px; }
-        h1 { font-size: 2.4rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; background: linear-gradient(135deg, #a78bfa, #60a5fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .subtitle { color: #94a3b8; font-size: 1.05rem; }
+        h1 { font-size: 2.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+        h1 span { color: var(--accent); }
+        .subtitle { color: var(--text2); font-size: 1.05rem; }
         .badge-row { display: flex; justify-content: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-        .badge { font-size: 0.78rem; padding: 5px 14px; border-radius: 20px; font-weight: 600; }
-        .badge-pytorch { background: rgba(238, 76, 44, 0.2); color: #ee4c2c; border: 1px solid rgba(238, 76, 44, 0.35); }
-        .badge-cv { background: rgba(96, 165, 250, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
-        .badge-onnx { background: rgba(96, 165, 250, 0.15); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); }
+        .badge {
+            font-size: 0.75rem; padding: 4px 12px; border-radius: var(--radius-pill); font-weight: 600;
+            font-family: var(--mono); background: rgba(var(--accent-rgb),0.08); color: var(--accent);
+        }
         .card {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
             padding: 28px;
             margin-bottom: 20px;
-            backdrop-filter: blur(12px);
         }
+        .card:hover { border-color: rgba(var(--accent-rgb),0.3); }
         .upload-area {
-            border: 2px dashed rgba(96, 165, 250, 0.4);
-            border-radius: 14px;
+            border: 2px dashed rgba(var(--accent-rgb),0.35);
+            border-radius: var(--radius-sm);
             padding: 40px 24px;
             text-align: center;
             cursor: pointer;
@@ -44,61 +68,62 @@
             justify-content: center;
             min-height: 160px;
         }
-        .upload-area:hover, .upload-area.drag-over { border-color: #60a5fa; background: rgba(96, 165, 250, 0.08); }
+        .upload-area:hover, .upload-area.drag-over { border-color: var(--accent); background: rgba(var(--accent-rgb),0.05); }
         .upload-area input { display: none; }
         .upload-icon { font-size: 2.8rem; margin-bottom: 10px; opacity: 0.85; line-height: 1; }
-        .upload-text { font-weight: 600; font-size: 1rem; color: #e2e8f0; line-height: 1.4; margin: 0; }
-        .upload-hint { color: #64748b; font-size: 0.85rem; margin-top: 8px; line-height: 1.4; }
+        .upload-text { font-weight: 600; font-size: 1rem; color: var(--text); line-height: 1.4; margin: 0; }
+        .upload-hint { color: var(--text3); font-size: 0.85rem; margin-top: 8px; line-height: 1.4; }
 
         .loading { display: none; text-align: center; padding: 28px; }
         .spinner {
             width: 44px; height: 44px;
-            border: 3px solid rgba(96, 165, 250, 0.2);
-            border-top-color: #60a5fa;
+            border: 3px solid rgba(var(--accent-rgb),0.2);
+            border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
             margin: 0 auto 14px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        #loadingText { color: #94a3b8; font-size: 0.9rem; }
+        #loadingText { color: var(--text2); font-size: 0.9rem; }
 
         .results { display: none; margin-top: 20px; }
-        .results h2 { font-size: 1.15rem; color: #cbd5e1; margin-bottom: 16px; }
+        .results h2 { font-size: 1.1rem; color: var(--text); margin-bottom: 16px; font-weight: 600; }
 
         .result-item {
             display: flex; align-items: center; gap: 14px;
-            background: rgba(0, 0, 0, 0.25);
+            background: var(--surface2);
             padding: 14px 18px;
-            border-radius: 12px;
+            border-radius: var(--radius-sm);
             margin-bottom: 8px;
+            border: 1px solid var(--border-inner);
         }
-        .result-item.top { border-left: 4px solid #60a5fa; background: rgba(96, 165, 250, 0.12); }
-        .result-rank { font-size: 0.85rem; color: #64748b; width: 24px; text-align: center; font-weight: 700; flex-shrink: 0; }
+        .result-item.top { border-left: 3px solid var(--accent); background: rgba(var(--accent-rgb),0.06); }
+        .result-rank { font-size: 0.85rem; color: var(--text3); width: 24px; text-align: center; font-weight: 700; flex-shrink: 0; }
         .result-label { flex: 1; font-weight: 600; font-size: 1rem; }
-        .result-item.top .result-label { color: #60a5fa; }
+        .result-item.top .result-label { color: var(--accent); }
         .progress-track {
             width: 140px; height: 10px;
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--surface2);
             border-radius: 5px; overflow: hidden;
             flex-shrink: 0;
         }
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
             border-radius: 5px;
             transition: width 0.6s ease;
         }
-        .result-pct { font-size: 0.95rem; font-weight: 700; color: #94a3b8; width: 56px; text-align: right; flex-shrink: 0; }
+        .result-pct { font-size: 0.95rem; font-weight: 700; color: var(--text2); width: 56px; text-align: right; flex-shrink: 0; }
 
-        /* Preprocessing visualization */
         .preproc-section { display: none; margin-top: 20px; }
-        .preproc-section h3 { font-size: 1rem; color: #cbd5e1; margin-bottom: 14px; }
+        .preproc-section h3 { font-size: 0.95rem; color: var(--text); margin-bottom: 14px; font-weight: 600; }
         .preproc-grid {
             display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
         }
         .preproc-step {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 12px;
+            background: var(--surface2);
+            border: 1px solid var(--border-inner);
+            border-radius: var(--radius-sm);
             padding: 12px;
             text-align: center;
             min-width: 120px;
@@ -108,55 +133,57 @@
         .preproc-step canvas {
             width: 100%;
             aspect-ratio: 1;
-            border-radius: 8px;
+            border-radius: 6px;
             background: rgba(0,0,0,0.3);
             object-fit: contain;
         }
         .preproc-step .step-name {
             font-size: 0.7rem;
-            color: #64748b;
+            color: var(--text3);
             margin-top: 6px;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            font-weight: 600;
         }
         .preproc-step .step-detail {
             font-size: 0.68rem;
-            color: #60a5fa;
+            color: var(--accent);
             margin-top: 2px;
+            font-family: var(--mono);
         }
         .preproc-arrow {
-            color: #475569;
+            color: var(--text3);
             font-size: 1.5rem;
             align-self: center;
             flex-shrink: 0;
         }
-        .normalized-canvas {
-            display: none;
-        }
 
         .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
         .metric-box {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 16px; border-radius: 12px;
+            background: var(--surface2);
+            border: 1px solid var(--border-inner);
+            padding: 16px; border-radius: var(--radius-sm);
             text-align: center;
         }
-        .metric-box h3 { color: #64748b; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
-        .metric-box .value { font-size: 1.5rem; font-weight: 700; color: #e2e8f0; }
-        .metric-box .value.green { color: #4ade80; }
-        .metric-box .value.blue { color: #60a5fa; }
-        .metric-box .value.purple { color: #a78bfa; }
+        .metric-box:hover { border-color: rgba(var(--accent-rgb),0.3); }
+        .metric-box h3 { color: var(--text3); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; font-weight: 600; }
+        .metric-box .value { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+        .metric-box .value.accent { color: var(--accent); }
 
         .pipeline-steps { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
         .step {
-            flex: 1; min-width: 100px; background: rgba(255, 255, 255, 0.04);
-            padding: 14px 10px; border-radius: 10px; text-align: center;
+            flex: 1; min-width: 100px; background: var(--surface2);
+            border: 1px solid var(--border-inner);
+            padding: 14px 10px; border-radius: var(--radius-sm); text-align: center;
         }
+        .step:hover { border-color: rgba(var(--accent-rgb),0.3); }
         .step-icon { font-size: 1.6rem; margin-bottom: 6px; }
-        .step-title { font-size: 0.75rem; color: #94a3b8; }
+        .step-title { font-size: 0.72rem; color: var(--text2); font-weight: 500; }
 
         .status-bar {
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
+            background: var(--surface2);
+            border: 1px solid var(--border-inner);
+            border-radius: var(--radius-sm);
             padding: 10px 16px;
             margin-bottom: 16px;
             display: flex;
@@ -166,35 +193,35 @@
         }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; }
         .status-dot.loading { background: #fbbf24; animation: pulse 1s infinite; }
-        .status-dot.ready { background: #4ade80; }
-        .status-dot.error { background: #f87171; }
+        .status-dot.ready { background: var(--accent); }
+        .status-dot.error { background: var(--danger); }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
         .error-box {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 8px;
+            background: rgba(255,84,89,0.1);
+            border: 1px solid rgba(255,84,89,0.2);
+            border-radius: var(--radius-sm);
             padding: 12px 16px;
             margin-top: 12px;
             font-size: 0.85rem;
-            color: #f87171;
+            color: var(--danger);
             display: none;
         }
 
-        footer { text-align: center; padding: 24px; color: #475569; font-size: 0.82rem; }
-        footer a { color: #60a5fa; text-decoration: none; }
-        footer a:hover { text-decoration: underline; }
+        footer { text-align: center; padding: 24px; color: var(--text3); font-size: 0.82rem; }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { color: var(--accent2); }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Retail Image Classifier</h1>
-            <p class="subtitle">Deep Learning para clasificación de productos retail · PyTorch + MobileNetV3</p>
+            <h1>Retail <span>Image Classifier</span></h1>
+            <p class="subtitle">Deep Learning para clasificacion de productos retail · PyTorch + MobileNetV3</p>
             <div class="badge-row">
-                <span class="badge badge-pytorch">PyTorch</span>
-                <span class="badge badge-cv">Computer Vision</span>
-                <span class="badge badge-onnx">ONNX Runtime</span>
+                <span class="badge">PyTorch</span>
+                <span class="badge">MobileNetV3</span>
+                <span class="badge">ONNX Runtime</span>
             </div>
         </header>
 
@@ -204,10 +231,10 @@
                 <span id="statusText">Cargando modelo ONNX...</span>
             </div>
 
-            <h2 style="font-size: 1.1rem; margin-bottom: 6px;">Clasificador de Imágenes</h2>
-            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 14px;">
-                Modelo CNN entrenado con <strong>fotos reales</strong> de DeepFashion InShop (17.7K imágenes).
-                <strong>6 categorías:</strong> Tops, Sweaters, Outerwear, Dresses, Bottoms, Skirts.
+            <h2 style="font-size: 1.1rem; margin-bottom: 6px; font-weight:600;">Clasificador de Imagenes</h2>
+            <p style="color: var(--text3); font-size: 0.88rem; margin-bottom: 14px;">
+                Modelo CNN entrenado con <strong style="color:var(--text)">fotos reales</strong> de DeepFashion InShop (17.7K imagenes).
+                <strong style="color:var(--text)">6 categorias:</strong> Tops, Sweaters, Outerwear, Dresses, Bottoms, Skirts.
             </p>
 
             <label class="upload-area" id="dropZone">
@@ -278,31 +305,31 @@
         </div>
 
         <div class="card">
-            <h2 style="font-size: 1.1rem; margin-bottom: 16px;">Métricas del Modelo — 25K fotos reales</h2>
+            <h2 style="font-size: 1.1rem; margin-bottom: 16px; font-weight:600;">Metricas del Modelo — 25K fotos reales</h2>
             <div class="metrics-grid">
                 <div class="metric-box">
                     <h3>Accuracy</h3>
-                    <div class="value green">95.1%</div>
+                    <div class="value accent">95.1%</div>
                 </div>
                 <div class="metric-box">
                     <h3>Precision</h3>
-                    <div class="value blue">95.3%</div>
+                    <div class="value accent">95.3%</div>
                 </div>
                 <div class="metric-box">
                     <h3>Recall</h3>
-                    <div class="value purple">95.4%</div>
+                    <div class="value accent">95.4%</div>
                 </div>
                 <div class="metric-box">
                     <h3>F1-Score</h3>
-                    <div class="value" style="color: #fbbf24;">95.4%</div>
+                    <div class="value accent">95.4%</div>
                 </div>
                 <div class="metric-box">
-                    <h3>Parámetros</h3>
+                    <h3>Parametros</h3>
                     <div class="value" style="font-size: 1.1rem;">1.5M</div>
                 </div>
                 <div class="metric-box">
                     <h3>Epochs</h3>
-                    <div class="value blue">20</div>
+                    <div class="value accent">20</div>
                 </div>
             </div>
         </div>
@@ -320,11 +347,10 @@
         </div>
 
         <footer>
-            <p>MobileNetV3-Small &middot; Fashion Product Images &middot; ONNX Runtime Web</p>
+            <p style="font-family:var(--mono);font-size:0.78rem;">MobileNetV3-Small · DeepFashion InShop · ONNX Runtime Web</p>
             <p style="margin-top: 6px;">
-                <a href="https://github.com/daviddaza2906/retail-image-classifier">GitHub</a> &middot;
-                <a href="https://github.com/daviddaza2906/retail-image-classifier/blob/main/train.py">train.py</a> &middot;
-                <a href="https://github.com/daviddaza2906/retail-image-classifier/blob/main/train_real.py">train_real.py</a>
+                <a href="https://github.com/DavidDaza2906">GitHub</a> &middot;
+                <a href="/">Portfolio</a>
             </p>
         </footer>
     </div>
