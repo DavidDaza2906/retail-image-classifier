@@ -4,7 +4,7 @@ Deep Learning CNN para clasificación de ropa retail. Entrenado con **DeepFashio
 
 ## Demo
 
-**Live:** https://retail-image-classifier.vercel.app
+**Live:** <https://retail-image-classifier.vercel.app>
 
 Pipeline de preprocesamiento visible: resize → crop → normalize → inferencia CNN.
 
@@ -18,10 +18,6 @@ Pipeline de preprocesamiento visible: resize → crop → normalize → inferenc
 | F1-Score | 78.5% |
 | Parámetros | 1.5M |
 | Epochs | 8 |
-
-## Clases (12)
-
-blouses, cardigans, dresses, graphic, jackets, pants, rompers, shorts, skirts, sweaters, sweatshirts, tees
 
 ## Stack
 
@@ -56,6 +52,4 @@ cd demo
 vercel --prod
 ```
 
-## Autor
-
-David Daza — [GitHub](https://github.com/daviddaza2906)
+ttps://github.com/daviddaza2906)
